@@ -71,6 +71,10 @@ jobs:
       - name: Install backend deps
         run: npm ci
 
+      - name: Wait for Postgres and Redis readiness
+        run: |
+          node -e "const { Client } = require('pg'); const Redis = require('ioredis'); const sleep = (ms) => new Promise((r) => setTimeout(r, ms)); async function waitPg() { for (let i = 0; i < 60; i++) { const c = new Client({ connectionString: process.env.DATABASE_URL }); try { await c.connect(); await c.query('SELECT 1'); await c.end(); console.log('Postgres ready'); return; } catch (e) { try { await c.end(); } catch {} await sleep(1000); } } throw new Error('Postgres not ready in time'); } async function waitRedis() { for (let i = 0; i < 60; i++) { const r = new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1 }); try { await r.connect(); const pong = await r.ping(); await r.quit(); if (pong === 'PONG') { console.log('Redis ready'); return; } } catch (e) { try { r.disconnect(); } catch {} await sleep(1000); } } throw new Error('Redis not ready in time'); } (async () => { await waitPg(); await waitRedis(); })().catch((e) => { console.error(e.message); process.exit(1); });"
+
       - name: Run migrations
         run: npm run migrate:up
 
