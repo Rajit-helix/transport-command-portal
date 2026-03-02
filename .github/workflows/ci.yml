@@ -71,11 +71,6 @@ jobs:
       - name: Install backend deps
         run: npm ci
 
-      - name: Wait for services
-        run: |
-          until pg_isready -h localhost -p 5434 -U postgres -d transport_test; do sleep 1; done
-          until redis-cli -h localhost -p 6381 ping | grep PONG; do sleep 1; done
-
       - name: Run migrations
         run: npm run migrate:up
 
@@ -86,7 +81,7 @@ jobs:
         run: npm run lint
 
       - name: Test backend with coverage
-        run: npm test
+        run: npm test -- --detectOpenHandles --forceExit
 
   frontend:
     runs-on: ubuntu-latest
