@@ -1,0 +1,49 @@
+services:
+  test_db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: transport_test
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d transport_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 5s
+
+  test_redis:
+    image: redis:7-alpine
+    ports:
+      - "6381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 3s
+
+  backend_test:
+    build:
+      context: ./backend
+    environment:
+      NODE_ENV: test
+      PORT: 4001
+      DATABASE_URL: postgres://postgres:postgres@test_db:5432/transport_test
+      JWT_SECRET: test_secret
+      JWT_EXPIRES_IN: 15m
+      REFRESH_TOKEN_EXPIRES_IN: 7d
+      CORS_ORIGINS: http://localhost:5173
+      REDIS_URL: redis://test_redis:6379
+      RATE_LIMIT_WINDOW_MS: 60000
+      RATE_LIMIT_MAX_AUTH: 100
+      RATE_LIMIT_MAX_BOOKING: 100
+      LOG_LEVEL: warn
+    depends_on:
+      test_db:
+        condition: service_healthy
+      test_redis:
+        condition: service_healthy
+    command: sh -c "npm run migrate:up && npm test -- --forceExit"
