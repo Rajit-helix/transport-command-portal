@@ -15,3 +15,8 @@ export async function enqueueNotification(payload) {
     }
   });
 }
+
+export async function closeNotificationQueue() {
+  if (!notificationQueue) return;
+  await notificationQueue.close();
+}
