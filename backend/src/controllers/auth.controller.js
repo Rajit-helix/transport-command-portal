@@ -270,10 +270,13 @@ export async function resetPassword(req, res, next) {
     const tokenHash = hashResetToken(token);
 
     const tokenResult = await query(
-      `SELECT prt.id, prt.user_id, prt.expires_at, prt.used_at, u.is_active
+      `SELECT prt.id, prt.user_id
        FROM password_reset_tokens prt
        JOIN users u ON u.id = prt.user_id
        WHERE prt.token_hash = $1
+         AND prt.used_at IS NULL
+         AND prt.expires_at > NOW()
+         AND u.is_active = TRUE
        LIMIT 1`,
       [tokenHash]
     );
@@ -283,12 +286,6 @@ export async function resetPassword(req, res, next) {
     }
 
     const resetRow = tokenResult.rows[0];
-    const now = Date.now();
-    const isExpired = new Date(resetRow.expires_at).getTime() < now;
-
-    if (resetRow.used_at || isExpired || !resetRow.is_active) {
-      throw unauthorized("Invalid or expired reset token");
-    }
 
     const passwordHash = await bcrypt.hash(newPassword, 12);
 
