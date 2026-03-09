@@ -1,20 +1,46 @@
 # Enterprise Transport App
 
-## Architecture
-- Backend: Node.js + Express + PostgreSQL + JWT + Permission-based RBAC
-- Frontend: React + Vite + React Router + React Hook Form + Zod
-- Cache/Queue: Redis + BullMQ
-- Realtime: Socket.io
-- API Docs: Swagger/OpenAPI
-- Infrastructure: Docker Compose, Nginx reverse proxy, GitHub Actions CI
+A full-stack transport operations platform with authentication, role-based access control, schedule and booking workflows, and realtime updates.
 
-## Security Baseline
-- Permission-based authorization (`permissions` + `role_permissions` in DB)
-- JWT access/refresh token flow
-- Request sanitization + parameterized SQL queries
-- Helmet + CORS hardening + HPP
-- Rate limiting on auth + booking endpoints
-- Structured DB audit logs with request IDs
+## Project Status
+- Viable now for local and LAN evaluation
+- Deployment-ready configuration included (`render.yaml`, Docker Compose)
+- Last locally verified: March 9, 2026
+
+## Recruiter 5-Minute Evaluation
+1. Clone repo
+2. Run:
+```bash
+.\start-all.bat
+```
+3. Open the printed login URL (typically `http://localhost:5173/login`)
+4. Register a user and sign in
+5. Confirm API health at `/api/health`
+
+This startup flow auto-handles common local issues (busy ports, service order, env wiring).
+
+## Core Capabilities
+- JWT auth: register, login, refresh, logout, password reset
+- Permission-based RBAC (`permissions`, `role_permissions`)
+- Customer booking lifecycle and cancellation
+- Driver assignment workflows
+- Realtime status updates with Socket.io
+- Input sanitization, rate limiting, request tracing, audit logging
+
+## Architecture
+- Frontend: React + Vite + React Router + React Hook Form + Zod
+- Backend: Node.js + Express + PostgreSQL
+- Realtime: Socket.io
+- Cache/Queue: Redis + BullMQ (optional in local mode)
+- Infra: Docker Compose + Nginx reverse proxy
+
+```mermaid
+flowchart LR
+  A["React Frontend"] --> B["Express API"]
+  B --> C["PostgreSQL"]
+  B --> D["Redis (optional)"]
+  B --> E["Socket.io"]
+```
 
 ## Smart Local Startup (Recommended)
 Run one command from project root:
@@ -23,17 +49,43 @@ Run one command from project root:
 .\start-all.bat
 ```
 
-What it does automatically:
-- Stops previously launched app windows from the last run
-- Finds free ports (no manual port conflict handling)
-- Starts embedded PostgreSQL, backend (migrate + seed + dev), and frontend
-- Writes runtime info to `.dev-runtime/ports.json`
+What it does:
+- Stops previously tracked app windows
+- Picks free backend/frontend ports automatically
+- Reuses local Postgres on `5432` if already running, otherwise starts embedded Postgres
+- Runs backend migrations + seed, then starts API and frontend
+- Writes runtime ports to `.dev-runtime/ports.json`
 
-Use the printed login URL from terminal output (example: `http://localhost:5173/login`).
+## Seed Users
+`npm run seed` creates/updates these accounts:
+- `admin@transport.local`
+- `manager@transport.local`
+- `driver@transport.local`
+- `customer@transport.local`
 
-## Development Run
+Default password: `Password@123`
+
+Optional override before seeding:
 ```bash
-# from project root
+set "SEED_DEFAULT_PASSWORD=YourStrongPassword"
+```
+
+## Quality Signals
+Commands used for quality checks:
+
+```bash
+cd backend
+npm run lint
+
+cd ../frontend
+npm run lint
+npm run build
+```
+
+Coverage threshold is enforced in `backend/jest.config.js` (>= 80% lines/statements/functions).
+
+## Development Run (Docker)
+```bash
 docker compose up --build
 ```
 
@@ -42,90 +94,36 @@ Endpoints:
 - API: `http://localhost/api`
 - Swagger: `http://localhost/api/docs`
 - Health: `http://localhost/api/health`
-- Readiness: `http://localhost/api/health/ready`
-- Liveness: `http://localhost/api/health/live`
 
-## Local Single-Server Run (No separate frontend dev server)
-Use this mode if you want clients to open the UI without restarting Vite.
+## Production Readiness
+Included in repo:
+- `render.yaml` service + database definition
+- production env templates (`.env.production.example`, `backend/.env.production.example`)
+- Nginx reverse proxy config
 
-```bash
-# terminal 1
-cd backend
-npm run start:embedded-db
-
-# terminal 2
-cd backend
-npm run migrate:up
-npm run seed
-npm run start:local
-```
-
-Endpoints in this mode:
-- App + API (single server): `http://localhost:4000`
-- Swagger: `http://localhost:4000/api/docs`
-
-## Test Run
-```bash
-# spin isolated test stack
-docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
-```
-
-Local backend tests:
-```bash
-cd backend
-npm install
-npm run migrate:up
-npm run seed
-npm test
-```
-
-Coverage threshold is enforced in `backend/jest.config.js` (>= 80% lines/statements/functions).
+Required production envs:
+- `DATABASE_URL`
+- `JWT_SECRET`
+- `CORS_ORIGINS`
+- `JWT_EXPIRES_IN`, `REFRESH_TOKEN_EXPIRES_IN`
+- optional: `REDIS_URL`, SMTP vars
 
 ## Production Run
-1. Copy production templates:
+1. Copy templates:
 ```bash
 cp .env.production.example .env.production
 cp backend/.env.production.example backend/.env
 ```
-2. Set strong secrets and production DB/Redis URLs.
-3. Build and start:
+2. Set secure production values
+3. Build and run:
 ```bash
 docker compose --env-file .env.production up --build -d
 ```
 
-## HTTPS Instructions
-- Terminate TLS at Nginx or upstream load balancer.
-- For Nginx in production, add:
-  - `listen 443 ssl;`
-  - `ssl_certificate /etc/nginx/certs/fullchain.pem;`
-  - `ssl_certificate_key /etc/nginx/certs/privkey.pem;`
-- Redirect HTTP -> HTTPS with `return 301 https://$host$request_uri;`.
-
-## Secrets Management Strategy
-- Do not commit real secrets.
-- Use one of:
-  - Docker Swarm/Kubernetes secrets
-  - Cloud secret manager (AWS Secrets Manager / GCP Secret Manager / Azure Key Vault)
-  - Vault with runtime injection
-- Inject secrets via environment variables at deploy time.
-
-## Default Seed Credentials
-- `admin@transport.local / Password@123`
-- `manager@transport.local / Password@123`
-- `driver@transport.local / Password@123`
-- `customer@transport.local / Password@123`
-
-## Migrations
+## Test Run
 ```bash
-cd backend
-npm run migrate:up
-npm run migrate:down
+docker compose -f docker-compose.test.yml up --build --abort-on-container-exit
 ```
 
-## Worker
-```bash
-cd backend
-npm run start:worker
-```
-
-PR protection check marker: 2026-03-03 02:19:32
+## Resume Summary (Copy-Paste)
+Built an enterprise transport portal with JWT auth, RBAC, booking and assignment workflows, realtime updates, audit logging, and deployment-ready Docker/Render configuration, including a one-command smart local startup that auto-resolves port conflicts.

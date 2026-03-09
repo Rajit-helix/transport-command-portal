@@ -1,8 +1,10 @@
+import bcrypt from "bcryptjs";
 import { query, pool } from "../src/config/db.js";
 
-const DEFAULT_PASSWORD_HASH = "$2a$12$nLctvdGL.QLzc4bhp6zoUugeqYTyQycbpiw4oMrenraxvHu/M9IrC";
-
 async function seed() {
+  const defaultPassword = process.env.SEED_DEFAULT_PASSWORD || "Password@123";
+  const defaultPasswordHash = await bcrypt.hash(defaultPassword, 12);
+
   await query(
     `INSERT INTO users (full_name, email, password_hash, role_id)
      SELECT 'System Admin', 'admin@transport.local', $1, r.id
@@ -15,7 +17,7 @@ async function seed() {
        role_id = EXCLUDED.role_id,
        is_active = TRUE,
        updated_at = NOW()`,
-    [DEFAULT_PASSWORD_HASH]
+    [defaultPasswordHash]
   );
 
   await query(
@@ -30,7 +32,7 @@ async function seed() {
        role_id = EXCLUDED.role_id,
        is_active = TRUE,
        updated_at = NOW()`,
-    [DEFAULT_PASSWORD_HASH]
+    [defaultPasswordHash]
   );
 
   await query(
@@ -45,7 +47,7 @@ async function seed() {
        role_id = EXCLUDED.role_id,
        is_active = TRUE,
        updated_at = NOW()`,
-    [DEFAULT_PASSWORD_HASH]
+    [defaultPasswordHash]
   );
 
   await query(
@@ -60,7 +62,7 @@ async function seed() {
        role_id = EXCLUDED.role_id,
        is_active = TRUE,
        updated_at = NOW()`,
-    [DEFAULT_PASSWORD_HASH]
+    [defaultPasswordHash]
   );
 
   await query(
