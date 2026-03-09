@@ -16,6 +16,21 @@
 - Rate limiting on auth + booking endpoints
 - Structured DB audit logs with request IDs
 
+## Smart Local Startup (Recommended)
+Run one command from project root:
+
+```bash
+.\start-all.bat
+```
+
+What it does automatically:
+- Stops previously launched app windows from the last run
+- Finds free ports (no manual port conflict handling)
+- Starts embedded PostgreSQL, backend (migrate + seed + dev), and frontend
+- Writes runtime info to `.dev-runtime/ports.json`
+
+Use the printed login URL from terminal output (example: `http://localhost:5173/login`).
+
 ## Development Run
 ```bash
 # from project root
