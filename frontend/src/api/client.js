@@ -1,11 +1,54 @@
 import axios from "axios";
 
-const defaultApiBaseUrl = "/api";
-const configuredApiBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
-const apiBaseUrl = (configuredApiBaseUrl || defaultApiBaseUrl).replace(/\/+$/, "");
+function isLocalhostHostname(hostname) {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+}
+
+function isLocalhostUrl(urlValue) {
+  try {
+    const parsed = new URL(urlValue);
+    return isLocalhostHostname(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+function getDefaultApiBaseUrl() {
+  if (typeof window === "undefined") {
+    return "/api";
+  }
+
+  const { hostname, port } = window.location;
+
+  // When port 5173 is served by containerized Nginx instead of Vite proxy,
+  // /api requests can fail. Use direct backend URL on localhost in that case.
+  if (isLocalhostHostname(hostname) && port === "5173") {
+    return "http://localhost:4000/api";
+  }
+
+  return "/api";
+}
+
+function resolveApiBaseUrl(configuredValue) {
+  const defaultApiBaseUrl = getDefaultApiBaseUrl();
+  const trimmed = configuredValue?.trim();
+  if (!trimmed) {
+    return defaultApiBaseUrl;
+  }
+
+  const normalized = trimmed.replace(/\/+$/, "");
+  if (typeof window === "undefined") {
+    return normalized;
+  }
+
+  const currentHost = window.location.hostname;
+  const shouldUseProxy = isLocalhostUrl(normalized) && !isLocalhostHostname(currentHost);
+
+  return shouldUseProxy ? defaultApiBaseUrl : normalized;
+}
 
 const api = axios.create({
-  baseURL: apiBaseUrl
+  baseURL: resolveApiBaseUrl(import.meta.env.VITE_API_BASE_URL)
 });
 
 let refreshInFlight = null;
