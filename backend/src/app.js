@@ -26,6 +26,7 @@ export const app = express();
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const frontendDistPath = path.resolve(__dirname, "../../frontend/dist");
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
 
 function normalizeOrigin(origin) {
   if (!origin) return origin;
@@ -36,6 +37,16 @@ function normalizeOrigin(origin) {
     return `${parsed.protocol}//${normalizedHost}${normalizedPort}`;
   } catch {
     return origin;
+  }
+}
+
+function isLoopbackOrigin(origin) {
+  if (!origin) return false;
+  try {
+    const parsed = new URL(origin);
+    return LOOPBACK_HOSTS.has(parsed.hostname.toLowerCase());
+  } catch {
+    return false;
   }
 }
 
@@ -61,11 +72,13 @@ app.use(
       const normalizedOrigin = normalizeOrigin(origin);
       const allowedOrigins = env.corsOrigins.map((value) => normalizeOrigin(value));
       const normalizedSameHostOrigin = normalizeOrigin(sameHostOrigin);
+      const allowLoopback = !env.isProduction && isLoopbackOrigin(origin);
 
       if (
         !origin ||
         allowedOrigins.includes(normalizedOrigin) ||
-        normalizedOrigin === normalizedSameHostOrigin
+        normalizedOrigin === normalizedSameHostOrigin ||
+        allowLoopback
       ) {
         return callback(null, true);
       }

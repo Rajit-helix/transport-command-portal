@@ -8,6 +8,9 @@ function resolveEmbeddedPort() {
 }
 
 const embeddedPort = resolveEmbeddedPort();
+const DATA_DIR = path.resolve(".embedded-postgres/data");
+const POSTMASTER_PID = path.join(DATA_DIR, "postmaster.pid");
+const POSTMASTER_OPTS = path.join(DATA_DIR, "postmaster.opts");
 
 const pg = new EmbeddedPostgres({
   databaseDir: "./.embedded-postgres/data",
@@ -20,14 +23,41 @@ const pg = new EmbeddedPostgres({
   onError: (message) => console.error(String(message || ""))
 });
 
+async function clearStalePostmasterPid() {
+  try {
+    const raw = await fs.readFile(POSTMASTER_PID, "utf8");
+    const pidLine = raw.split(/\r?\n/)[0];
+    const pid = Number(pidLine);
+    if (!Number.isInteger(pid) || pid <= 0) {
+      return;
+    }
+
+    try {
+      process.kill(pid, 0);
+      return;
+    } catch (error) {
+      if (error?.code !== "ESRCH") {
+        return;
+      }
+    }
+
+    await fs.rm(POSTMASTER_PID, { force: true });
+    await fs.rm(POSTMASTER_OPTS, { force: true });
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      console.error("Failed to inspect postmaster.pid:", error);
+    }
+  }
+}
+
 async function ensureDatabase() {
-  const dataDir = path.resolve(".embedded-postgres/data");
-  const pgVersionFile = path.join(dataDir, "PG_VERSION");
+  const pgVersionFile = path.join(DATA_DIR, "PG_VERSION");
   try {
     await fs.access(pgVersionFile);
   } catch {
     await pg.initialise();
   }
+  await clearStalePostmasterPid();
   await pg.start();
   try {
     await pg.createDatabase("transport_db");

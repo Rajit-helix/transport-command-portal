@@ -17,6 +17,10 @@ Use this file as the first read in future sessions. It captures the current arch
 - 2026-03-02: Fixed CORS false-negatives for hostnames with trailing dot (e.g., `http://localhost.`) by normalizing origin hostnames in backend CORS matching logic (`backend/src/app.js`).
 - 2026-03-02: Added animated bus-interior themed backgrounds for registration and reset-password pages via shared scene wrappers and new CSS animation layers (`frontend/src/pages/RegisterPage.jsx`, `frontend/src/pages/ResetPasswordPage.jsx`, `frontend/src/styles.css`).
 - 2026-03-02: Switched register/reset backgrounds to use a real bus-interior image asset (`frontend/src/assets/bus-interior.png`) with animated parallax/light overlays; rebuilt frontend container and restarted nginx to refresh upstream routing after service recreation.
+- 2026-03-16: Hardened local host handling: backend CORS now allows loopback variants in dev; frontend socket/API resolution avoids localhost cross-host issues; Vite proxy derives target from env; Swagger servers use relative `/api`; dev redirect from `localhost.com` to `localhost` (`backend/src/app.js`, `frontend/src/api/client.js`, `frontend/vite.config.js`, `backend/src/swagger.js`, `backend/src/swagger-docs/transport.yaml`, `frontend/src/main.jsx`).
+- 2026-03-16: Embedded Postgres now auto-cleans stale `postmaster.pid`/`postmaster.opts` before start to prevent false "did not start" timeouts (`backend/scripts/embedded-postgres.js`).
+- 2026-03-16: Added Postgres readiness wait with retry to avoid startup race (`backend/scripts/wait-for-postgres.js`, `scripts/start-app.ps1`).
+- 2026-03-16: Start script now detects incompatible existing Postgres on 5432 and falls back to embedded on a free port for reliable local startup (`scripts/start-app.ps1`).
 
 ## Repo Layout
 - `backend/`: Express API, PostgreSQL access, RBAC, JWT auth, Redis/BullMQ, Socket.IO

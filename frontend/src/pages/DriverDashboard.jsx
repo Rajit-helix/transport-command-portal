@@ -1,13 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { io } from "socket.io-client";
 import toast from "react-hot-toast";
-import api from "../api/client";
+import api, { resolveSocketUrl } from "../api/client";
 import Loader from "../components/Loader";
 import { useAuth } from "../context/AuthContext";
 
-const socketUrl =
-  import.meta.env.VITE_SOCKET_URL ||
-  (typeof window !== "undefined" ? window.location.origin : "http://localhost:4000");
+const socketUrl = resolveSocketUrl(import.meta.env.VITE_SOCKET_URL);
 
 export default function DriverDashboard() {
   const { user } = useAuth();

@@ -88,6 +88,17 @@ Coverage threshold is enforced in `backend/jest.config.js` (>= 80% lines/stateme
 ```bash
 docker compose up --build
 ```
+Auto-restart on Windows 11:
+- Ensure Docker Desktop is set to start at login.
+- Services use `restart: unless-stopped`, so once you run `docker compose up -d --build` one time, they will come back automatically after reboot or Docker restarts.
+- If you never want to run commands again, install the startup task once:
+```powershell
+.\scripts\install-startup-task.ps1
+```
+To remove it:
+```powershell
+.\scripts\remove-startup-task.ps1
+```
 
 Endpoints:
 - App: `http://localhost:5173`

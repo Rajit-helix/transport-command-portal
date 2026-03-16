@@ -7,7 +7,7 @@ const options = {
       title: "Enterprise Transport API",
       version: "2.0.0"
     },
-    servers: [{ url: "http://localhost:4000/api" }],
+    servers: [{ url: "/api" }],
     components: {
       securitySchemes: {
         bearerAuth: {

@@ -1,7 +1,16 @@
 import axios from "axios";
 
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"]);
+
+function normalizeHostname(hostname) {
+  return String(hostname || "")
+    .trim()
+    .replace(/\.+$/, "")
+    .toLowerCase();
+}
+
 function isLocalhostHostname(hostname) {
-  return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  return LOOPBACK_HOSTS.has(normalizeHostname(hostname));
 }
 
 function isLocalhostUrl(urlValue) {
@@ -45,6 +54,23 @@ function resolveApiBaseUrl(configuredValue) {
   const shouldUseProxy = isLocalhostUrl(normalized) && !isLocalhostHostname(currentHost);
 
   return shouldUseProxy ? defaultApiBaseUrl : normalized;
+}
+
+export function resolveSocketUrl(configuredValue) {
+  const trimmed = configuredValue?.trim();
+  if (!trimmed) {
+    return typeof window !== "undefined" ? window.location.origin : "http://localhost:4000";
+  }
+
+  const normalized = trimmed.replace(/\/+$/, "");
+  if (typeof window === "undefined") {
+    return normalized;
+  }
+
+  const currentHost = window.location.hostname;
+  const shouldUseProxy = isLocalhostUrl(normalized) && !isLocalhostHostname(currentHost);
+
+  return shouldUseProxy ? window.location.origin : normalized;
 }
 
 const api = axios.create({

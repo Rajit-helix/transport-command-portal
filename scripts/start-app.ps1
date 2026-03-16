@@ -77,6 +77,37 @@ function Wait-ForHttp200 {
   return $false
 }
 
+function Test-PostgresReady {
+  param(
+    [int]$Port,
+    [int]$TimeoutMs = 5000
+  )
+
+  $prevDatabaseUrl = $env:DATABASE_URL
+  $prevPgTimeout = $env:PG_READY_TIMEOUT_MS
+
+  $env:DATABASE_URL = "postgres://postgres:postgres@localhost:$Port/transport_db"
+  $env:PG_READY_TIMEOUT_MS = $TimeoutMs
+
+  Push-Location $backendDir
+  try {
+    node scripts/wait-for-postgres.js | Out-Null
+    return ($LASTEXITCODE -eq 0)
+  } finally {
+    Pop-Location
+    if ($null -eq $prevDatabaseUrl) {
+      Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+    } else {
+      $env:DATABASE_URL = $prevDatabaseUrl
+    }
+    if ($null -eq $prevPgTimeout) {
+      Remove-Item Env:PG_READY_TIMEOUT_MS -ErrorAction SilentlyContinue
+    } else {
+      $env:PG_READY_TIMEOUT_MS = $prevPgTimeout
+    }
+  }
+}
+
 function Stop-TrackedProcesses {
   if (-not (Test-Path -LiteralPath $pidFile)) {
     return
@@ -128,6 +159,7 @@ function Stop-TrackedProcesses {
 Stop-TrackedProcesses
 
 $dbPort = 5432
+$startEmbeddedDb = $true
 $backendPort = Get-FreePort -Preferred 4000
 $frontendPort = Get-FreePort -Preferred 5173
 $trackedProcesses = @()
@@ -137,7 +169,16 @@ Write-Host "  Embedded DB : $dbPort"
 Write-Host "  Backend API : $backendPort"
 Write-Host "  Frontend    : $frontendPort"
 
-if (Test-PortFree -Port $dbPort) {
+if (-not (Test-PortFree -Port $dbPort)) {
+  if (Test-PostgresReady -Port $dbPort -TimeoutMs 5000) {
+    $startEmbeddedDb = $false
+  } else {
+    $dbPort = Get-FreePort -Preferred $dbPort
+    Write-Host "  Existing PostgreSQL on 5432 is incompatible; starting embedded on $dbPort." -ForegroundColor Yellow
+  }
+}
+
+if ($startEmbeddedDb) {
   $dbCmd = "cd /d `"$backendDir`" && set `"EMBEDDED_PG_PORT=$dbPort`" && npm run start:embedded-db"
   $dbProc = Start-Process -FilePath "cmd.exe" -ArgumentList "/k", $dbCmd -PassThru
 
@@ -154,7 +195,7 @@ if (Test-PortFree -Port $dbPort) {
   Write-Host "  Reusing existing PostgreSQL on port $dbPort" -ForegroundColor DarkCyan
 }
 
-$backendCmd = "cd /d `"$backendDir`" && set `"PORT=$backendPort`" && set `"DATABASE_URL=postgres://postgres:postgres@localhost:$dbPort/transport_db`" && set `"CORS_ORIGINS=http://localhost:$frontendPort`" && set `"FRONTEND_URL=http://localhost:$frontendPort`" && set `"REDIS_URL=`" && npm run migrate:up && npm run seed && npm run start"
+$backendCmd = "cd /d `"$backendDir`" && set `"PORT=$backendPort`" && set `"DATABASE_URL=postgres://postgres:postgres@localhost:$dbPort/transport_db`" && set `"CORS_ORIGINS=http://localhost:$frontendPort`" && set `"FRONTEND_URL=http://localhost:$frontendPort`" && set `"REDIS_URL=`" && set `"PG_READY_TIMEOUT_MS=90000`" && node scripts/wait-for-postgres.js && npm run migrate:up && npm run seed && npm run start"
 $backendProc = Start-Process -FilePath "cmd.exe" -ArgumentList "/k", $backendCmd -PassThru
 
 if (-not (Wait-ForHttp200 -Url "http://localhost:$backendPort/api/health" -TimeoutSeconds 90)) {
